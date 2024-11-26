@@ -12,10 +12,11 @@ type AdminUserController struct{}
 
 // GetUserList retrieves the list of all users
 func (ctrl *AdminUserController) GetUserList(c *gin.Context) {
-	var users []model.User
+	var user model.User
 
 	// Retrieve all users from the database
-	if err := model.GetAllUsers(&users); err != nil {
+	users, err := user.GetAllUsers()
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -50,13 +51,14 @@ func (ctrl *AdminUserController) CreateUser(c *gin.Context) {
 		}
 
 		// Create a new user model
-		var user model.User
-		user.Name = form.Name
-		user.Email = form.Email
-		user.Password = form.Password
+		user := model.User{
+			Name:     form.Name,
+			Email:    form.Email,
+			Password: form.Password,
+		}
 
-		// Call the AdminCreateUser function to create the user
-		if err := model.AdminCreateUser(&user); err != nil {
+		// Call the Create method to create the user
+		if err := user.Create(); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -70,9 +72,10 @@ func (ctrl *AdminUserController) CreateUser(c *gin.Context) {
 // DeleteUser deletes a user by ID (admin only)
 func (ctrl *AdminUserController) DeleteUser(c *gin.Context) {
 	id := c.Param("id")
+	var user model.User
 
-	// Call the DeleteUserByID function in the model to delete the user
-	if err := model.DeleteUserByID(id); err != nil {
+	// Call the DeleteUserByID method to delete the user
+	if err := user.DeleteUserByID(id); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -92,14 +95,21 @@ func (ctrl *AdminUserController) UpdateUser(c *gin.Context) {
 			return
 		}
 
-		// Update the user info
+		// Retrieve the user from the database
+		id := c.Param("id")
 		var user model.User
+		if err := user.GetFirstByID(id); err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+
+		// Update user data
 		user.Name = form.Name
 		user.Email = form.Email
 		user.Password = form.Password
 
-		// Call the AdminUpdateUser function to update the user's data
-		if err := model.AdminUpdateUser(&user); err != nil {
+		// Call the UpdateUser method to update the user's data
+		if err := user.UpdateUser(); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
