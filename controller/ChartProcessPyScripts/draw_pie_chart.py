@@ -2,6 +2,11 @@
 import sys
 import json
 import matplotlib.pyplot as plt
+import matplotlib
+
+# 设置字体以支持汉字
+matplotlib.rcParams['font.sans-serif'] = ['SimHei']  # 使用黑体
+matplotlib.rcParams['axes.unicode_minus'] = False  # 解决保存图像时负号 '-' 显示为方块的问题
 
 def draw_pie_chart(title, data):
     labels = [item['name'] for item in data]
