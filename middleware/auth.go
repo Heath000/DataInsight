@@ -18,7 +18,7 @@ type Login struct {
 	Password string `form:"password" json:"password" binding:"required,min=6,max=20"`
 }
 
-// Auth middleware
+// Auth middleware 返回 JWT 中间件实例
 func Auth() *jwt.GinJWTMiddleware {
 	return authMiddleware
 }
@@ -35,22 +35,24 @@ func init() {
 		PayloadFunc: func(data any) jwt.MapClaims {
 			if v, ok := data.(*model.User); ok {
 				return jwt.MapClaims{
-					identityKey: v.Email,   // email 仍然作为身份标识
-					"ID":    v.ID,      // 添加 userID 到令牌
+					identityKey: v.Email,
+					"ID":        v.ID,
 					"name":      v.Name,
 				}
 			}
 			return jwt.MapClaims{}
 		},
-		
+
 		IdentityHandler: func(c *gin.Context) any {
 			claims := jwt.ExtractClaims(c)
 			return &model.User{
-				ID:    uint(claims["ID"].(float64)), // 提取 userID 并转换为 uint 类型
+				ID:    uint(claims["ID"].(float64)),
 				Email: claims[identityKey].(string),
 				Name:  claims["name"].(string),
 			}
 		},
+
+		// Authenticator: 用户登录验证
 		Authenticator: func(c *gin.Context) (any, error) {
 			var loginVals Login
 			if err := c.ShouldBind(&loginVals); err != nil {
@@ -58,39 +60,36 @@ func init() {
 			}
 			email := loginVals.Email
 			password := loginVals.Password
-
 			return model.LoginByEmailAndPassword(email, password)
 		},
+
+		// Authorizator: 权限控制
 		Authorizator: func(data any, c *gin.Context) bool {
-			if _, ok := data.(*model.User); ok {
-				return true // 允许所有已登录用户访问
+			if user, ok := data.(*model.User); ok {
+				// 如果是 /admin 路由或者以 /admin 开头的路由，检查是否为管理员
+				if c.FullPath() == "/admin" || c.FullPath()[:6] == "/admin" {
+					if user.Email != "admin" {
+						return false // 非管理员用户不允许访问 /admin 路由
+					}
+				}
+				// 其他路由，所有已登录用户都可以访问
+				return true
 			}
 			return false
-
 		},
+
+		// 未授权的响应
 		Unauthorized: func(c *gin.Context, code int, message string) {
 			c.JSON(code, gin.H{
 				"code":    code,
 				"message": message,
 			})
 		},
-		// TokenLookup is a string in the form of "<source>:<name>" that is used
-		// to extract token from the request.
-		// Optional. Default value "header:Authorization".
-		// Possible values:
-		// - "header:<name>"
-		// - "query:<name>"
-		// - "cookie:<name>"
-		// - "param:<name>"
-		TokenLookup: "header: Authorization, query: token, cookie: jwt",
-		// TokenLookup: "query:token",
-		// TokenLookup: "cookie:token",
 
-		// TokenHeadName is a string in the header. Default value is "Bearer"
+		// TokenLookup 配置：从请求中查找 Token 的位置
+		TokenLookup:   "header: Authorization, query: token, cookie: jwt",
 		TokenHeadName: "Bearer",
-
-		// TimeFunc provides the current time. You can override it to use another time value. This is useful for testing or if your server uses a different time zone than your tokens.
-		TimeFunc: time.Now,
+		TimeFunc:      time.Now,
 	})
 
 	if err != nil {

@@ -36,7 +36,14 @@ type CategoryIdAndYear struct {
 func NewQueryController() *QueryController {
 	return &QueryController{}
 }
-
+func (ctrl *QueryController) GetProvinceList(c *gin.Context) {
+	provinces, err := model.Province{}.GetAllProvinces()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch provinces: " + err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "success", "data": provinces})
+}
 // QueryRegions 获取指定省份下的所有地区
 func (ctrl *QueryController) QueryRegions(c *gin.Context) {
 	// 绑定请求体的参数

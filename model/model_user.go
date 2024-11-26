@@ -99,3 +99,31 @@ func LoginByEmailAndPassword(email, password string) (*User, error) {
 
 	return &user, user.Login(password)
 }
+
+// GetAllUsers gets all users
+func (u *User) GetAllUsers() ([]User, error) {
+	var users []User
+	err := DB().Find(&users).Error
+	if err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
+// DeleteUserByID deletes a user by their ID
+func (u *User) DeleteUserByID(id string) error {
+	err := DB().Where("id = ?", id).Delete(&User{}).Error
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// UpdateUser updates the user information
+func (u *User) UpdateUser() error {
+	err := DB().Save(u).Error
+	if err != nil {
+		return err
+	}
+	return nil
+}

@@ -93,6 +93,19 @@ func (BasicData) GetBasicDataByCategoryAndYears(categoryID string, years []strin
 
 // 查询接口5:查询这个叶子category下有多少年份可以查
 // GetAvailableYearsByLeafCategory 根据叶子类别 ID 查询该类别下可查询的年份列表
+
+// GetAllProvinces 获取所有省份信息
+func (Province) GetAllProvinces() ([]Province, error) {
+	var provinces []Province
+
+	// 查询数据库中所有省份信息
+	err := DB().Find(&provinces).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return provinces, nil
+}
 func (BasicData) GetAvailableYearsByLeafCategory(categoryID string) ([]string, error) {
 	var years []string
 
@@ -108,4 +121,79 @@ func (BasicData) GetAvailableYearsByLeafCategory(categoryID string) ([]string, e
 	}
 
 	return years, nil
+}
+
+
+//以下是开放给管理员，可以对数据进行修改的接口
+// Province 表相关方法
+
+// Create 新增省份
+func (p *Province) Create() error {
+	return DB().Create(p).Error
+}
+
+// Update 修改省份
+func (p *Province) Update(provinceID string) error {
+	return DB().Model(&Province{}).Where("province_id = ?", provinceID).Updates(p).Error
+}
+
+// Delete 删除省份
+func (Province) Delete(provinceID string) error {
+	return DB().Where("province_id = ?", provinceID).Delete(&Province{}).Error
+}
+
+// Region 表相关方法
+
+// Create 新增区域
+func (r *Region) Create() error {
+	return DB().Create(r).Error
+}
+
+// Update 修改区域
+func (r *Region) Update(regionID string) error {
+	return DB().Model(&Region{}).Where("region_id = ?", regionID).Updates(r).Error
+}
+
+// Delete 删除区域
+func (Region) Delete(regionID string) error {
+	return DB().Where("region_id = ?", regionID).Delete(&Region{}).Error
+}
+
+// Category 表相关方法
+
+// Create 新增分类
+func (c *Category) Create() error {
+	return DB().Create(c).Error
+}
+
+// Update 修改分类
+func (c *Category) Update(categoryID string) error {
+	return DB().Model(&Category{}).Where("category_id = ?", categoryID).Updates(c).Error
+}
+
+// Delete 删除分类
+func (Category) Delete(categoryID string) error {
+	return DB().Where("category_id = ?", categoryID).Delete(&Category{}).Error
+}
+
+// BasicData 表相关方法
+
+// Create 新增数据
+func (d *BasicData) Create() error {
+	return DB().Create(d).Error
+}
+
+// Update 修改数据
+func (d *BasicData) Update(regionID, categoryID, year string) error {
+	return DB().
+		Model(&BasicData{}).
+		Where("region_id = ? AND category_id = ? AND year = ?", regionID, categoryID, year).
+		Updates(d).Error
+}
+
+// Delete 删除数据
+func (BasicData) Delete(regionID, categoryID, year string) error {
+	return DB().
+		Where("region_id = ? AND category_id = ? AND year = ?", regionID, categoryID, year).
+		Delete(&BasicData{}).Error
 }

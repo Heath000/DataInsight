@@ -65,4 +65,7 @@ func (ctrl *UserController) Signup(c *gin.Context) {
 	} else {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 	}
+
+
+
 }
