@@ -75,10 +75,20 @@ func (f *FileController) GetFile(c *gin.Context) {
 	}
 	userID := uint(idValue)
 
-	// 根据 file_id 和 userID 获取该文件的信息
+	// 根据 file_id 和 userID 获取该文件的信息(这个因为获取了多余的file对象被去掉了，下面是不获取filesql对象的版本，有需要再恢复这版)
+	/*	var fileModel model.File
+		file, err := fileModel.GetFileByIDAndUserID(uint(fileID), userID)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{
+				"code":    404,
+				"message": "File not found",
+			})
+			return
+		}*/
 	var fileModel model.File
-	file, err := fileModel.GetFileByIDAndUserID(uint(fileID), userID)
+	_, err = fileModel.GetFileByIDAndUserID(uint(fileID), userID)
 	if err != nil {
+		// 如果错误不为空，则文件不存在
 		c.JSON(http.StatusNotFound, gin.H{
 			"code":    404,
 			"message": "File not found",
@@ -94,7 +104,7 @@ func (f *FileController) GetFile(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error processing data"})
 		return
 	}
-	filePath := filepath.Join(currentDir, "file", fileID)
+	filePath := filepath.Join(currentDir, "file", strconv.FormatUint(fileID, 10))
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		c.JSON(http.StatusNotFound, gin.H{
 			"code":    404,
@@ -157,7 +167,7 @@ func (f *FileController) DeleteFile(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error processing data"})
 		return
 	}
-	filePath := filepath.Join(currentDir, "file", fileID)
+	filePath := filepath.Join(currentDir, "file", strconv.FormatUint(fileID, 10))
 
 	// 检查文件是否存在
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
@@ -223,7 +233,7 @@ func (f *FileController) UploadFile(c *gin.Context) {
 		return
 	}
 	uploadPath := filepath.Join(currentDir, "file")
-	fullPath := uploadPath + file.FileID
+	fullPath := filepath.Join(uploadPath, strconv.FormatUint(uint64(fileInfo.FileID), 10))
 
 	// 保存文件到指定路径
 	if err := c.SaveUploadedFile(file, fullPath); err != nil {
