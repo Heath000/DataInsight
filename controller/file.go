@@ -1,7 +1,10 @@
 package controller
 
 import (
+	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
@@ -50,6 +53,7 @@ func (f *FileController) GetFileList(c *gin.Context) {
 func (f *FileController) GetFile(c *gin.Context) {
 	// 从请求中获取文件ID
 	fileIDStr := c.Param("file_id")
+	//filename := c.Param("filename")
 	fileID, err := strconv.ParseUint(fileIDStr, 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -83,16 +87,32 @@ func (f *FileController) GetFile(c *gin.Context) {
 	}
 
 	// 真正地获取服务器里的文件，然后发回****************
+	// 获取当前工作目录并拼接脚本路径
+	currentDir, err := os.Getwd()
+	if err != nil {
+		log.Println("Error getting current directory:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error processing data"})
+		return
+	}
+	filePath := filepath.Join(currentDir, "file", fileID)
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		c.JSON(http.StatusNotFound, gin.H{
+			"code":    404,
+			"message": "File not found on server",
+		})
+		return
+	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"file": file,
-	})
+	// 返回文件内容
+	c.File(filePath)
+	// code ends here
 }
 
 // DeleteFile 删除文件
 func (f *FileController) DeleteFile(c *gin.Context) {
 	// 从请求中获取文件ID
 	fileIDStr := c.Param("file_id")
+	//filename := c.Param("filename")
 	fileID, err := strconv.ParseUint(fileIDStr, 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -131,9 +151,34 @@ func (f *FileController) DeleteFile(c *gin.Context) {
 		}
 		return
 	}
+	currentDir, err := os.Getwd()
+	if err != nil {
+		log.Println("Error getting current directory:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error processing data"})
+		return
+	}
+	filePath := filepath.Join(currentDir, "file", fileID)
 
-	// 真正地删除服务器里面存的文件***********代码写在这里
+	// 检查文件是否存在
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		c.JSON(http.StatusNotFound, gin.H{
+			"code":    404,
+			"message": "File does not exist on server",
+		})
+		return
+	}
 
+	// 删除服务器中的文件
+	if err := os.Remove(filePath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "Failed to delete file from server",
+		})
+		log.Println("File deletion error:", err)
+		return
+	}
+
+	// 成功删除
 	c.JSON(http.StatusOK, gin.H{
 		"message": "File deleted successfully",
 	})
@@ -163,13 +208,33 @@ func (f *FileController) UploadFile(c *gin.Context) {
 	}
 
 	// 真正地将文件保存到服务器的指定路径********************** 代码写在这里
-
 	// 在数据库中保存文件记录
 	fileInfo := model.File{
 		UserID:     userID,
 		Filename:   file.Filename,
 		UploadTime: time.Now(), // 假设 UploadTime 自动设置
 	}
+	// 定义文件存储路径
+	// 获取当前工作目录并拼接脚本路径
+	currentDir, err := os.Getwd()
+	if err != nil {
+		log.Println("Error getting current directory:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error processing data"})
+		return
+	}
+	uploadPath := filepath.Join(currentDir, "file")
+	fullPath := uploadPath + file.FileID
+
+	// 保存文件到指定路径
+	if err := c.SaveUploadedFile(file, fullPath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "Failed to save file to server",
+		})
+		return
+	}
+	//code ends here
+
 	if err := fileInfo.PostFileInfo(userID, file.Filename); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"message": "Failed to save file information in database",
