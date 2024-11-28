@@ -16,6 +16,8 @@ import (
 )
 
 /*
+		POST请求：localhost:7077/llm/report
+		body raw json
 		前端传入参数：
 		{
 	    	"prompt": 用户的提示词
@@ -30,11 +32,13 @@ import (
 	    "message": "success"
 		}
 		请注意prompt必须是string类型且里面的所有content内容加一起的tokens需要控制在8192以内否则会报错(1 token约等于1.5个中文汉字 或者 0.8个英文单词)
+		如果要实现固定的提问词，之间在前端以字符串的形式拼接到prompt上即可，例如：前端先把用户的表格数据拼接成字符串，然后加上固定的提问词，
+		例如，请根据以上表格帮我生成一份数据分析报告，然后把表格和固定的提问词拼接起来传入prompt即可
 */
 type LlmController struct{}
 
 var (
-	hostUrl   = "wss://spark-api.xf-yun.com/v3.5/chat"
+	hostUrl   = "wss://spark-api.xf-yun.com/v4.0/chat"
 	appid     = "7e568c90"
 	apiSecret = "MmMxYzg5NTY5YTk5MjYxYTUzNmQxMDJj"
 	apiKey    = "72c36b595faac7d22548aa1cbc3c93d9"
@@ -161,11 +165,11 @@ func genParams1(appid, question string) map[string]interface{} { // 根据实际
 		},
 		"parameter": map[string]interface{}{ // 根据实际情况修改返回的数据结构和字段名
 			"chat": map[string]interface{}{ // 根据实际情况修改返回的数据结构和字段名
-				"domain":      "generalv3.5", // 根据实际情况修改返回的数据结构和字段名
-				"temperature": float64(0.8),  // 根据实际情况修改返回的数据结构和字段名
-				"top_k":       int64(6),      // 根据实际情况修改返回的数据结构和字段名
-				"max_tokens":  int64(2048),   // 根据实际情况修改返回的数据结构和字段名
-				"auditing":    "default",     // 根据实际情况修改返回的数据结构和字段名
+				"domain":      "4.0Ultra",   // 根据实际情况修改返回的数据结构和字段名
+				"temperature": float64(0.8), // 根据实际情况修改返回的数据结构和字段名
+				"top_k":       int64(6),     // 根据实际情况修改返回的数据结构和字段名
+				"max_tokens":  int64(2048),  // 根据实际情况修改返回的数据结构和字段名
+				"auditing":    "default",    // 根据实际情况修改返回的数据结构和字段名
 			},
 		},
 		"payload": map[string]interface{}{ // 根据实际情况修改返回的数据结构和字段名
