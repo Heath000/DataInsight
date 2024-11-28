@@ -2,7 +2,7 @@ package controller
 
 import (
 	"net/http"
-
+	"golang.org/x/crypto/bcrypt"
 	"github.com/Heath000/fzuSE2024/model"
 	"github.com/gin-gonic/gin"
 )
@@ -83,10 +83,7 @@ func (ctrl *AdminUserController) DeleteUser(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "User deleted successfully"})
 }
 
-import (
-	"golang.org/x/crypto/bcrypt"
-	"log"
-)
+
 
 func (ctrl *AdminUserController) UpdateUser(c *gin.Context) {
 	var form Signup

@@ -71,6 +71,14 @@ type user_questions struct {
 	Algorithm string `json:"algorithm"`
 	Table Table `json:"table"`
 }
+func (ctrl *LlmController) GetChat(c *gin.Context) {
+
+	time.Sleep(1 * time.Second)
+	c.JSON(http.StatusOK, gin.H{
+		"message": "success",
+		"data":    "test",
+	})
+}
 
 // GetUser gets the user info
 func (ctrl *LlmController) GetReport(c *gin.Context) {

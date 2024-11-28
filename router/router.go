@@ -110,6 +110,7 @@ func Route(app *gin.Engine) {
 	llm := app.Group("/llm")
 	{
 		llm.POST("/report", llmController.GetReport)
+		llm.POST("/chat", llmController.GetChat)
 	}
 
 	fileController := new(controller.FileController)
