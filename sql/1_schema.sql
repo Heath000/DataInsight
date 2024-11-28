@@ -30,8 +30,8 @@ CREATE TABLE basic_data (
     data INT DEFAULT 0,
     year CHAR(4) NOT NULL,
     PRIMARY KEY (region_id, category_id, year),
-    FOREIGN KEY (region_id) REFERENCES regions(region_id),
-    FOREIGN KEY (category_id) REFERENCES categories(category_id)
+    FOREIGN KEY (region_id) REFERENCES regions(region_id) ON DELETE CASCADE,
+    FOREIGN KEY (category_id) REFERENCES categories(category_id) ON DELETE CASCADE
 ) DEFAULT CHARACTER SET utf8mb4;
 
 

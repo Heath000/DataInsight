@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -49,11 +50,10 @@ func (f *FileController) GetFileList(c *gin.Context) {
 	})
 }
 
-// GetFile 获取单个文件信息
+// GetFile 获取单个文件
 func (f *FileController) GetFile(c *gin.Context) {
 	// 从请求中获取文件ID
 	fileIDStr := c.Param("file_id")
-	//filename := c.Param("filename")
 	fileID, err := strconv.ParseUint(fileIDStr, 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -75,20 +75,10 @@ func (f *FileController) GetFile(c *gin.Context) {
 	}
 	userID := uint(idValue)
 
-	// 根据 file_id 和 userID 获取该文件的信息(这个因为获取了多余的file对象被去掉了，下面是不获取filesql对象的版本，有需要再恢复这版)
-	/*	var fileModel model.File
-		file, err := fileModel.GetFileByIDAndUserID(uint(fileID), userID)
-		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{
-				"code":    404,
-				"message": "File not found",
-			})
-			return
-		}*/
+	// 根据 file_id 和 userID 获取该文件的信息
 	var fileModel model.File
-	_, err = fileModel.GetFileByIDAndUserID(uint(fileID), userID)
+	file, err := fileModel.GetFileByIDAndUserID(uint(fileID), userID)
 	if err != nil {
-		// 如果错误不为空，则文件不存在
 		c.JSON(http.StatusNotFound, gin.H{
 			"code":    404,
 			"message": "File not found",
@@ -96,7 +86,6 @@ func (f *FileController) GetFile(c *gin.Context) {
 		return
 	}
 
-	// 真正地获取服务器里的文件，然后发回****************
 	// 获取当前工作目录并拼接脚本路径
 	currentDir, err := os.Getwd()
 	if err != nil {
@@ -104,7 +93,11 @@ func (f *FileController) GetFile(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error processing data"})
 		return
 	}
-	filePath := filepath.Join(currentDir, "file", strconv.FormatUint(fileID, 10))
+
+	// 使用 fileID + filename + extension 构建文件路径
+	filePath := filepath.Join(currentDir, "file", strconv.FormatUint(uint64(fileID), 10)+"-"+file.Filename)
+
+	// 检查文件是否存在
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		c.JSON(http.StatusNotFound, gin.H{
 			"code":    404,
@@ -113,16 +106,14 @@ func (f *FileController) GetFile(c *gin.Context) {
 		return
 	}
 
-	// 返回文件内容
+	// 返回文件内容，返回时只提供 filename + extension
 	c.File(filePath)
-	// code ends here
 }
 
 // DeleteFile 删除文件
 func (f *FileController) DeleteFile(c *gin.Context) {
 	// 从请求中获取文件ID
 	fileIDStr := c.Param("file_id")
-	//filename := c.Param("filename")
 	fileID, err := strconv.ParseUint(fileIDStr, 10, 32)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -146,7 +137,7 @@ func (f *FileController) DeleteFile(c *gin.Context) {
 
 	// 删除文件，使用 fileID 和 userID 双重验证
 	var fileModel model.File
-	err = fileModel.DeleteFileByIDAndUserID(uint(fileID), userID)
+	file, err := fileModel.GetFileByIDAndUserID(uint(fileID), userID)
 	if err != nil {
 		if err == model.ErrDataNotFound {
 			c.JSON(http.StatusNotFound, gin.H{
@@ -161,13 +152,17 @@ func (f *FileController) DeleteFile(c *gin.Context) {
 		}
 		return
 	}
+
+	// 获取当前工作目录并拼接脚本路径
 	currentDir, err := os.Getwd()
 	if err != nil {
 		log.Println("Error getting current directory:", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error processing data"})
 		return
 	}
-	filePath := filepath.Join(currentDir, "file", strconv.FormatUint(fileID, 10))
+
+	// 使用 fileID + filename + extension 构建文件路径
+	filePath := filepath.Join(currentDir, "file", strconv.FormatUint(uint64(fileID), 10)+"-"+file.Filename)
 
 	// 检查文件是否存在
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
@@ -217,14 +212,30 @@ func (f *FileController) UploadFile(c *gin.Context) {
 		return
 	}
 
-	// 真正地将文件保存到服务器的指定路径********************** 代码写在这里
 	// 在数据库中保存文件记录
 	fileInfo := model.File{
 		UserID:     userID,
 		Filename:   file.Filename,
-		UploadTime: time.Now(), // 假设 UploadTime 自动设置
+		UploadTime: time.Now(),
 	}
-	// 定义文件存储路径
+
+	// 调用 PostFileInfo 插入数据库
+	if err := fileInfo.PostFileInfo(userID, file.Filename); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Failed to save file information in database",
+		})
+		return
+	}
+
+	// 使用 GetLastFileID 获取最新的 fileID
+	lastFileID, err := model.GetLastFileID()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"message": "Failed to retrieve last file ID",
+		})
+		return
+	}
+
 	// 获取当前工作目录并拼接脚本路径
 	currentDir, err := os.Getwd()
 	if err != nil {
@@ -233,6 +244,7 @@ func (f *FileController) UploadFile(c *gin.Context) {
 		return
 	}
 
+	// 定义文件存储路径
 	uploadPath := filepath.Join(currentDir, "file")
 	// 确保文件夹存在，不存在时创建它
 	if err := os.MkdirAll(uploadPath, os.ModePerm); err != nil {
@@ -241,7 +253,20 @@ func (f *FileController) UploadFile(c *gin.Context) {
 		return
 	}
 
-	fullPath := filepath.Join(uploadPath, strconv.FormatUint(uint64(fileInfo.FileID), 10))
+	// 获取文件扩展名
+	fileExtension := filepath.Ext(file.Filename) // 获取文件的扩展名（如 .jpg、.png）
+	if fileExtension == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"message": "File does not have an extension",
+		})
+		return
+	}
+
+	// 使用 fileID + filename + extension 生成文件路径
+	fullPath := filepath.Join(uploadPath, strconv.FormatUint(uint64(lastFileID), 10)+"-"+file.Filename)
+
+	// 打印生成的文件路径
+	fmt.Println("Saving file to path:", fullPath)
 
 	// 保存文件到指定路径
 	if err := c.SaveUploadedFile(file, fullPath); err != nil {
@@ -252,15 +277,7 @@ func (f *FileController) UploadFile(c *gin.Context) {
 		return
 	}
 
-	//code ends here
-
-	if err := fileInfo.PostFileInfo(userID, file.Filename); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"message": "Failed to save file information in database",
-		})
-		return
-	}
-
+	// 成功响应
 	c.JSON(http.StatusOK, gin.H{
 		"message": "File uploaded successfully",
 	})

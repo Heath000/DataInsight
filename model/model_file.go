@@ -81,3 +81,19 @@ func (f *File) PostFileInfo(userID uint, filename string) error {
 	}
 	return nil
 }
+// GetLastFileID 获取最新的 fileID，返回最后插入的文件的 fileID
+func GetLastFileID() (uint, error) {
+	var lastFile File
+	// 使用 Order 降序排列，Limit 1 只取一条最新的记录
+	err := DB().Order("file_id desc").Limit(1).First(&lastFile).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// 如果没有找到记录，说明文件表为空，返回 0 和错误
+			return 0, errors.New("no files found")
+		}
+		// 如果查询出错，返回错误
+		return 0, err
+	}
+	// 返回最新记录的 fileID
+	return lastFile.FileID, nil
+}
