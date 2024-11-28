@@ -42,7 +42,7 @@ func Route(app *gin.Engine) {
 		adminUser.GET("/get_user/:id", adminUserController.GetUser)          //获取指定用户信息byId
 		adminUser.POST("/create_user", adminUserController.CreateUser)       // 管理员创建用户
 		adminUser.DELETE("/delete_user/:id", adminUserController.DeleteUser) // 管理员删除用户
-		adminUser.PUT("/update_user", adminUserController.UpdateUser)        //管理员修改用户信息
+		adminUser.PUT("/update_user/:id", adminUserController.UpdateUser)    //管理员修改用户信息
 	}
 	userController := new(controller.UserController)
 	app.GET(
