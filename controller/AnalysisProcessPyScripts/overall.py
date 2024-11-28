@@ -7,18 +7,17 @@ def calculate_statistics(data):
     stats = {}
     data = np.array(data)
 
-    # 计算描述性统计
-    stats["count"] = len(data)
-    stats["max"] = np.max(data)
-    stats["min"] = np.min(data)
-    stats["mean"] = np.mean(data)
-    stats["std_dev"] = np.std(data, ddof=1)  # 样本标准差
-    stats["median"] = np.median(data)
-    stats["variance"] = np.var(data, ddof=1)  # 样本方差
-    stats["kurtosis"] = kurtosis(data)
-    stats["skewness"] = skew(data)
+    stats["count"] = int(len(data))
+    stats["max"] = float(np.max(data))
+    stats["min"] = float(np.min(data))
+    stats["mean"] = float(np.mean(data))
+    stats["std_dev"] = float(np.std(data, ddof=1) ) # 样本标准差
+    stats["median"] = float(np.median(data))
+    stats["variance"] = float(np.var(data, ddof=1) ) # 样本方差
+    stats["kurtosis"] = float(kurtosis(data))
+    stats["skewness"] = float(skew(data))
     stats["cv"] = stats["std_dev"] / stats["mean"] if stats["mean"] != 0 else float('nan')  # 变异系数
-
+    stats["cv"] = float(stats["cv"])
     return stats
 
 try:
