@@ -83,7 +83,11 @@ func (ctrl *AdminUserController) DeleteUser(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "User deleted successfully"})
 }
 
-// UpdateUser updates a user's information
+import (
+	"golang.org/x/crypto/bcrypt"
+	"log"
+)
+
 func (ctrl *AdminUserController) UpdateUser(c *gin.Context) {
 	var form Signup
 
@@ -103,10 +107,17 @@ func (ctrl *AdminUserController) UpdateUser(c *gin.Context) {
 			return
 		}
 
-		// Update user data
+		// Hash the new password before storing it in the database
+		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(form.Password), bcrypt.DefaultCost)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+			return
+		}
+
+		// Update user data with the hashed password
 		user.Name = form.Name
 		user.Email = form.Email
-		user.Password = form.Password
+		user.Password = string(hashedPassword) // Store the hashed password
 
 		// Call the UpdateUser method to update the user's data
 		if err := user.UpdateUser(); err != nil {
