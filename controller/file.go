@@ -232,7 +232,15 @@ func (f *FileController) UploadFile(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error processing data"})
 		return
 	}
+
 	uploadPath := filepath.Join(currentDir, "file")
+	// 确保文件夹存在，不存在时创建它
+	if err := os.MkdirAll(uploadPath, os.ModePerm); err != nil {
+		log.Println("Error creating upload directory:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error creating directory"})
+		return
+	}
+
 	fullPath := filepath.Join(uploadPath, strconv.FormatUint(uint64(fileInfo.FileID), 10))
 
 	// 保存文件到指定路径
@@ -243,6 +251,7 @@ func (f *FileController) UploadFile(c *gin.Context) {
 		})
 		return
 	}
+
 	//code ends here
 
 	if err := fileInfo.PostFileInfo(userID, file.Filename); err != nil {
