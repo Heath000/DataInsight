@@ -147,7 +147,7 @@ func (f *FileController) DeleteFile(c *gin.Context) {
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"code":    500,
-				"message": "Failed to delete file",
+				"message": "Failed to retrieve file information from database",
 			})
 		}
 		return
@@ -165,27 +165,60 @@ func (f *FileController) DeleteFile(c *gin.Context) {
 	filePath := filepath.Join(currentDir, "file", strconv.FormatUint(uint64(fileID), 10)+"-"+file.Filename)
 
 	// 检查文件是否存在
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		c.JSON(http.StatusNotFound, gin.H{
-			"code":    404,
-			"message": "File does not exist on server",
+	_, fileErr := os.Stat(filePath)
+
+	// 如果文件存在，则删除文件
+	if fileErr == nil {
+		// 删除服务器中的文件
+		if err := os.Remove(filePath); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"code":    500,
+				"message": "Failed to delete file from server",
+			})
+			log.Println("File deletion error:", err)
+			return
+		}
+	} else if os.IsNotExist(fileErr) {
+		// 如果文件不存在，检查数据库记录并删除
+		log.Println("File not found on server, checking database record...")
+
+		// 删除数据库中的记录
+		err = fileModel.DeleteFileByIDAndUserID(uint(fileID), userID)
+		if err != nil {
+			if err == model.ErrDataNotFound {
+				c.JSON(http.StatusNotFound, gin.H{
+					"code":    404,
+					"message": "File not found in database",
+				})
+			} else {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"code":    500,
+					"message": "Failed to delete file record from database",
+				})
+			}
+			log.Println("Database record deletion error:", err)
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"message": "File record deleted from database, but no physical file found",
 		})
 		return
 	}
 
-	// 删除服务器中的文件
-	if err := os.Remove(filePath); err != nil {
+	// 如果文件存在且成功删除，删除数据库中的记录
+	err = fileModel.DeleteFileByIDAndUserID(uint(fileID), userID)
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"code":    500,
-			"message": "Failed to delete file from server",
+			"message": "Failed to delete file record from database",
 		})
-		log.Println("File deletion error:", err)
+		log.Println("Database record deletion error:", err)
 		return
 	}
 
-	// 成功删除
+	// 成功删除文件和数据库记录
 	c.JSON(http.StatusOK, gin.H{
-		"message": "File deleted successfully",
+		"message": "File deleted successfully, record removed from database",
 	})
 }
 
