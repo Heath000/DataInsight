@@ -6,18 +6,34 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"github.com/gorilla/websocket"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 )
+
 //前端传入参数
 //前端传入参数
 //前端传入参数
 /*
+		聊天模块：
+		POST请求：localhost:7077/llm/chat
+		body raw json
+		前端传入参数：
+		{
+    		"Prompt": "你好，请介绍一下你自己"
+		}
+		后端返回参数：
+		{
+    		"data": "您好，我是科大讯飞研发的认知智能大模型，我的名字叫讯飞星火认知大模型。我可以和人类进行自然交流，解答问题，高效完成各领域认知智能需求。",
+    		"message": "success"
+		}
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+		生成报告模块：
 		POST请求：localhost:7077/llm/report
 		body raw json
 		前端传入参数：
@@ -28,9 +44,9 @@ import (
 		Table struct {
 			Title       string         // 表格标题
 			Description string         // 表格描述
-    		Data        [][]float64    
-    		Labels      []float64      
-    		PredictData [][]float64 
+    		Data        [][]float64
+    		Labels      []float64
+    		PredictData [][]float64
 		}
 		例如你可以传入：
 		{
@@ -59,42 +75,33 @@ var (
 	apiSecret = "MmMxYzg5NTY5YTk5MjYxYTUzNmQxMDJj"
 	apiKey    = "72c36b595faac7d22548aa1cbc3c93d9"
 )
+
 type Table struct {
 	Title       string      `json:"title"`
 	Description string      `json:"description"`
-    Data        [][]float64 `json:"data"`
-    Labels      []float64   `json:"labels"`
-    PredictData [][]float64 `json:"predict_data"`
+	Data        [][]float64 `json:"data"`
+	Labels      []float64   `json:"labels"`
+	PredictData [][]float64 `json:"predict_data"`
 }
 
 type user_questions struct {
 	Algorithm string `json:"algorithm"`
-	Table Table `json:"table"`
+	Table     Table  `json:"table"`
 }
+
+type user_chats struct {
+	Prompt string `json:"prompt"`
+}
+
 func (ctrl *LlmController) GetChat(c *gin.Context) {
 
 	time.Sleep(1 * time.Second)
-	c.JSON(http.StatusOK, gin.H{
-		"message": "success",
-		"data":    "test",
-	})
-}
-
-// GetUser gets the user info
-func (ctrl *LlmController) GetReport(c *gin.Context) {
-	var user_question user_questions
-	if err := c.ShouldBindJSON(&user_question); err != nil {
+	var user_chat user_chats
+	if err := c.ShouldBindJSON(&user_chat); err != nil {
 		fmt.Println("Error binding JSON:", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	// 将 Table 转换为 JSON 字符串
-    tableJSON, err := json.Marshal(user_question.Table)
-    if err != nil {
-        fmt.Println("Error marshalling table:", err)
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Error processing table data"})
-        return
-    }
 	/*
 		response := map[string]string{
 			"response": "This is a response to the prompt: " + user_question.Prompt,
@@ -120,7 +127,119 @@ func (ctrl *LlmController) GetReport(c *gin.Context) {
 	//data := genParams1(appid, "你是谁，可以干什么？"): 调用 genParams1 函数，传入 appid 和一个问题字符串，生成要发送的数据。
 	//conn.WriteJSON(data): 通过 WebSocket 连接 conn 发送生成的 JSON 数据。
 	//这段代码的目的是异步发送一个消息，询问 "你是谁，可以干什么？" 给 WebSocket 服务器。
-	user_prompt := string(tableJSON) + "以上表格是"+ user_question.Table.Title +"运用"+ user_question.Algorithm + "算法的数据，" + "请根据以上表格帮我生成一份数据分析报告,并结合标题的语境进行数据解读,以markdown格式返回"
+	//user_prompt := string(tableJSON) + "以上表格是"+ user_question.Table.Title +"运用"+ user_question.Algorithm + "算法的数据，" + "请根据以上表格帮我生成一份数据分析报告,并结合标题的语境进行数据解读,以markdown格式返回"
+	go func() {
+
+		data := genParams1(appid, user_chat.Prompt)
+		conn.WriteJSON(data)
+
+	}()
+
+	var answer = ""
+	//获取返回的数据
+	for {
+		_, msg, err := conn.ReadMessage()
+		if err != nil {
+			fmt.Println("read message error:", err)
+			break
+		}
+
+		var data map[string]interface{}
+		/*
+			if err := c.ShouldBindJSON(&data); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
+				return
+			}
+		*/
+		err1 := json.Unmarshal(msg, &data)
+		if err1 != nil {
+			fmt.Println("Error parsing JSON:", err1)
+			return
+		}
+		//fmt.Println(string(msg))
+		//解析数据
+		payload, ok := data["payload"].(map[string]interface{})
+		if !ok {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid payload"})
+			return
+		}
+		choices := payload["choices"].(map[string]interface{})
+		header := data["header"].(map[string]interface{})
+		code := header["code"].(float64)
+
+		if code != 0 {
+			fmt.Println(data["payload"])
+			return
+		}
+		status := choices["status"].(float64)
+		//fmt.Println(status)
+		text := choices["text"].([]interface{})
+		content := text[0].(map[string]interface{})["content"].(string)
+		if status != 2 {
+			answer += content
+		} else {
+			fmt.Println("收到最终结果")
+			answer += content
+			usage := payload["usage"].(map[string]interface{})
+			temp := usage["text"].(map[string]interface{})
+			totalTokens := temp["total_tokens"].(float64)
+			fmt.Println("total_tokens:", totalTokens)
+			conn.Close()
+			break
+		}
+
+	}
+	//输出返回结果
+	fmt.Println(answer)
+
+	time.Sleep(1 * time.Second)
+	c.JSON(http.StatusOK, gin.H{
+		"message": "success",
+		"data":    answer,
+	})
+}
+
+// GetUser gets the user info
+func (ctrl *LlmController) GetReport(c *gin.Context) {
+	var user_question user_questions
+	if err := c.ShouldBindJSON(&user_question); err != nil {
+		fmt.Println("Error binding JSON:", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	// 将 Table 转换为 JSON 字符串
+	tableJSON, err := json.Marshal(user_question.Table)
+	if err != nil {
+		fmt.Println("Error marshalling table:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error processing table data"})
+		return
+	}
+	/*
+		response := map[string]string{
+			"response": "This is a response to the prompt: " + user_question.Prompt,
+		}
+		c.JSON(http.StatusOK, response)
+	*/
+	// fmt.Println(HmacWithShaTobase64("hmac-sha256", "hello\nhello", "hello"))
+	// st := time.Now()
+	//创建一个新的 websocket.Dialer 实例，并设置了握手超时时间。
+	//websocket.Dialer 用于配置和建立 WebSocket 连接。
+	//HandshakeTimeout 字段设置了 WebSocket 握手完成的最长持续时间。
+	d := websocket.Dialer{
+		HandshakeTimeout: 5 * time.Second,
+	}
+	//握手并建立websocket 连接
+	conn, resp, err := d.Dial(assembleAuthUrl1(hostUrl, apiKey, apiSecret), nil)
+	if err != nil {
+		panic(readResp(resp) + err.Error())
+		return
+	} else if resp.StatusCode != 101 {
+		panic(readResp(resp) + err.Error())
+	}
+	//data := genParams1(appid, "你是谁，可以干什么？"): 调用 genParams1 函数，传入 appid 和一个问题字符串，生成要发送的数据。
+	//conn.WriteJSON(data): 通过 WebSocket 连接 conn 发送生成的 JSON 数据。
+	//这段代码的目的是异步发送一个消息，询问 "你是谁，可以干什么？" 给 WebSocket 服务器。
+	user_prompt := string(tableJSON) + "以上表格是" + user_question.Table.Title + "运用" + user_question.Algorithm + "算法的数据，" + "请根据以上表格帮我生成一份数据分析报告,并结合标题的语境进行数据解读,以markdown格式返回"
 	go func() {
 
 		data := genParams1(appid, user_prompt)
