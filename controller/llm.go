@@ -50,7 +50,7 @@ type Table struct {
     ExtraParams map[string]interface{} `json:"extraParams"` // 额外参数，如预测数据、时间序列等
 }
 type AnalysisResults struct {
-    result interface{} `json:"result"`
+    Result interface{} `json:"result"`
 }
 type user_questions struct {
     Algorithm string                 `json:"algorithm"` // 算法名称
@@ -183,6 +183,12 @@ func (ctrl *LlmController) GetReport(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error processing table data"})
 		return
 	}
+	analyresultJSON, err := json.Marshal(user_question.AnalysisResults.Result)
+	if err != nil {
+		fmt.Println("Error marshalling table:", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error processing table data"})
+		return
+	}
 	/*
 		response := map[string]string{
 			"response": "This is a response to the prompt: " + user_question.Prompt,
@@ -208,7 +214,7 @@ func (ctrl *LlmController) GetReport(c *gin.Context) {
 	//data := genParams1(appid, "你是谁，可以干什么？"): 调用 genParams1 函数，传入 appid 和一个问题字符串，生成要发送的数据。
 	//conn.WriteJSON(data): 通过 WebSocket 连接 conn 发送生成的 JSON 数据。
 	//这段代码的目的是异步发送一个消息，询问 "你是谁，可以干什么？" 给 WebSocket 服务器。
-	user_prompt := string(tableJSON) + "以上表格是" + user_question.Table.Title + "运用" + user_question.Algorithm + "算法的数据，" + "请根据以上表格帮我生成一份数据分析报告,并结合标题的语境进行数据解读,以markdown格式返回"
+	user_prompt := "以下数据需要用"+ user_question.Algorithm +"进行数据分析，输入的数据为：" +string(tableJSON) + "算法分析后输出的数据为：" + string(analyresultJSON) + "这些输入的描述为："+ string(user_question.Table.Description) +"请根据以上表格帮我生成一份数据分析报告,并结合标题的语境进行数据解读,以markdown格式返回"
 	go func() {
 
 		data := genParams1(appid, user_prompt)
