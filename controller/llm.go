@@ -49,10 +49,13 @@ type Table struct {
     Labels      interface{}            `json:"labels"`      // 标签，可为任意类型
     ExtraParams map[string]interface{} `json:"extraParams"` // 额外参数，如预测数据、时间序列等
 }
-
+type AnalysisResults struct {
+    result interface{} `json:"result"`
+}
 type user_questions struct {
     Algorithm string                 `json:"algorithm"` // 算法名称
     Table     Table                  `json:"table"`     // 表格数据
+	AnalysisResults AnalysisResults `json:"analysisResults"`
     Params    map[string]interface{} `json:"params"`    // 算法特定参数，如超参数等
 }
 type user_chats struct {
