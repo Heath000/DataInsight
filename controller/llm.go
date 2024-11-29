@@ -77,18 +77,18 @@ var (
 )
 
 type Table struct {
-	Title       string      `json:"title"`
-	Description string      `json:"description"`
-	Data        [][]float64 `json:"data"`
-	Labels      []float64   `json:"labels"`
-	PredictData [][]float64 `json:"predict_data"`
+    Title       string                 `json:"title"`       // 表格标题
+    Description string                 `json:"description"` // 表格描述
+    Data        interface{}            `json:"data"`        // 数据，可为任意类型
+    Labels      interface{}            `json:"labels"`      // 标签，可为任意类型
+    ExtraParams map[string]interface{} `json:"extraParams"` // 额外参数，如预测数据、时间序列等
 }
 
 type user_questions struct {
-	Algorithm string `json:"algorithm"`
-	Table     Table  `json:"table"`
+    Algorithm string                 `json:"algorithm"` // 算法名称
+    Table     Table                  `json:"table"`     // 表格数据
+    Params    map[string]interface{} `json:"params"`    // 算法特定参数，如超参数等
 }
-
 type user_chats struct {
 	Prompt string `json:"prompt"`
 }
